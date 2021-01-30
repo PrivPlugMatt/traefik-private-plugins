@@ -1,0 +1,17 @@
+name: Sync Docker Hub readme
+on:
+  push:
+    branches:
+      - master
+jobs:
+  syncDockerhubReadme:
+    runs-on: ubuntu-latest
+    environment: docker-hub
+    steps:
+      - uses: actions/checkout@v2
+      - name: Sync Docker Hub readme
+        uses: peter-evans/dockerhub-description@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+          repository: ${{ secrets.DOCKER_HUB_REPO }}
