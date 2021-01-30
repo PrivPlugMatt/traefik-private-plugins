@@ -1,0 +1,43 @@
+name: Apply patch for specific branch or tag
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 15 * * *"
+
+jobs:
+  apply:
+    name: Clone traefik and patch
+    environment: docker-hub
+    strategy:
+      matrix:
+        ref: [master, v2.4.0]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone patches
+        uses: actions/checkout@master
+        with:
+          path: ./patches
+      - name: Clone traefik
+        uses: actions/checkout@master
+        with:
+          repository: traefik/traefik
+          path: ./traefik-src
+          ref: ${{ matrix.ref }}
+      - name: Apply patches
+        run: |
+          cd ./traefik-src
+          git apply -v ../patches/*.patch
+      - name: Build traefik image
+        env:
+          DOCKER_HUB_REPO: ${{ secrets.DOCKER_HUB_REPO }}
+          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+          GIT_REF: ${{ matrix.ref }}
+        run: bash -x ./patches/make-and-push.sh
+      - uses: JasonEtco/create-an-issue@v2
+        if: ${{ failure() }}
+        with:
+          filename: ./patches/.github/ISSUE_TEMPLATE.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_REF: ${{ matrix.ref }}

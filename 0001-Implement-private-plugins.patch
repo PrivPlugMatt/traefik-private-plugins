@@ -1,0 +1,108 @@
+From 404a8bb88128e8df7fe8462eec7f343abe39ce52 Mon Sep 17 00:00:00 2001
+From: pagran <pagran@pm.me>
+Date: Fri, 29 Jan 2021 00:00:00 +0000
+Subject: [PATCH] Implement private plugins
+
+---
+ cmd/traefik/plugins.go         |  2 +-
+ cmd/traefik/private_plugins.go | 34 ++++++++++++++++++++++++++++++++++
+ pkg/plugins/private_builder.go | 33 +++++++++++++++++++++++++++++++++
+ 3 files changed, 68 insertions(+), 1 deletion(-)
+ create mode 100644 cmd/traefik/private_plugins.go
+ create mode 100644 pkg/plugins/private_builder.go
+
+diff --git a/cmd/traefik/plugins.go b/cmd/traefik/plugins.go
+index ac773009..bc3ed923 100644
+--- a/cmd/traefik/plugins.go
++++ b/cmd/traefik/plugins.go
+@@ -7,7 +7,7 @@ import (
+ 
+ const outputDir = "./plugins-storage/"
+ 
+-func createPluginBuilder(staticConfiguration *static.Configuration) (*plugins.Builder, error) {
++func createPilotPluginBuilder(staticConfiguration *static.Configuration) (*plugins.Builder, error) {
+ 	client, plgs, devPlugin, err := initPlugins(staticConfiguration)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/cmd/traefik/private_plugins.go b/cmd/traefik/private_plugins.go
+new file mode 100644
+index 00000000..3728ffb7
+--- /dev/null
++++ b/cmd/traefik/private_plugins.go
+@@ -0,0 +1,34 @@
++package main
++
++import (
++	"github.com/traefik/traefik/v2/pkg/config/static"
++	"github.com/traefik/traefik/v2/pkg/plugins"
++	"github.com/traefik/traefik/v2/pkg/server/middleware"
++)
++
++const privatePluginGoPath = "./private-plugins-storage/"
++
++func createPluginBuilder(staticConfiguration *static.Configuration) (middleware.PluginsBuilder, error) {
++	privatePlugins := make(map[string]plugins.Descriptor)
++	if hasPlugins(staticConfiguration) {
++		for k, v := range staticConfiguration.Experimental.Plugins {
++			if v.Version != "private" {
++				continue
++			}
++
++			privatePlugins[k] = v
++			delete(staticConfiguration.Experimental.Plugins, k)
++		}
++	}
++
++	pilotBuilder, err := createPilotPluginBuilder(staticConfiguration)
++	if err != nil {
++		return nil, err
++	}
++
++	if err := pilotBuilder.LoadPrivatePlugins(privatePluginGoPath, privatePlugins); err != nil {
++		return nil, err
++	}
++
++	return pilotBuilder, nil
++}
+diff --git a/pkg/plugins/private_builder.go b/pkg/plugins/private_builder.go
+new file mode 100644
+index 00000000..ce84b1dd
+--- /dev/null
++++ b/pkg/plugins/private_builder.go
+@@ -0,0 +1,33 @@
++package plugins
++
++import (
++	"fmt"
++
++	"github.com/traefik/yaegi/interp"
++	"github.com/traefik/yaegi/stdlib"
++)
++
++func (b *Builder) LoadPrivatePlugins(goPath string, privatePlugins map[string]Descriptor) error {
++	for pName, privatePlugin := range privatePlugins {
++		manifest, err := ReadManifest(goPath, privatePlugin.ModuleName)
++		if err != nil {
++			return fmt.Errorf("%s: failed to read private manifest: %w", privatePlugin.ModuleName, err)
++		}
++
++		i := interp.New(interp.Options{GoPath: goPath})
++		i.Use(stdlib.Symbols)
++
++		_, err = i.Eval(fmt.Sprintf(`import "%s"`, manifest.Import))
++		if err != nil {
++			return fmt.Errorf("%s: failed to import private plugin code %q: %w", privatePlugin.ModuleName, manifest.Import, err)
++		}
++
++		b.descriptors[pName] = pluginContext{
++			interpreter: i,
++			GoPath:      goPath,
++			Import:      manifest.Import,
++			BasePkg:     manifest.BasePkg,
++		}
++	}
++	return nil
++}
+-- 
+2.17.1
+
