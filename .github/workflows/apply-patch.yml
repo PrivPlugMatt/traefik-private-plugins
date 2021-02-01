@@ -10,7 +10,7 @@ jobs:
     environment: docker-hub
     strategy:
       matrix:
-        ref: [master, v2.4.0]
+        ref: [master, v2.4.0, v2.4.1]
     runs-on: ubuntu-latest
     steps:
       - name: Clone patches
