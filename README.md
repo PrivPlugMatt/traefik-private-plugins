@@ -1,6 +1,5 @@
 # Traefik private plugin support
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/PrivPlugMatt/traefik-private-plugins/Apply%20patch%20for%20specific%20branch%20or%20tag)
-![Last build](https://img.shields.io/badge/dynamic/json?color=green&label=Last%20build&query=$.workflows[?(@.path==%22.github/workflows/apply-patch.yml%22)].updated_at&url=https%3A%2F%2Fapi.github.com%2Frepos%2FPrivPlugMatt%2Ftraefik-private-plugins%2Factions%2Fworkflows)
 ![Docker Image Version (tag latest semver)](https://img.shields.io/docker/v/pagran/traefik/latest)
 ![Docker Image Version (tag latest semver)](https://img.shields.io/docker/v/pagran/traefik/v2.4.0)
 
